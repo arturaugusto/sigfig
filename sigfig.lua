@@ -64,28 +64,39 @@ function sigfig.detect_significant_figures(str)
     -- Remove decimal point temporarily
     local base_clean = base:gsub("%.", "")
 
-    -- Remove leading zeros (only if no decimal point before them)
+    -- If no decimal point, remove trailing zeros (non-significant)
     if not base:find("%.") then
-        base_clean = base_clean:match("^0*(.-)$")
+        base_clean = base_clean:gsub("0*$", "")
     end
 
-    -- Count digits
+    -- Remove leading zeros (non-significant)
+    base_clean = base_clean:gsub("^0*", "")
+
+    -- Edge case: all digits removed? it's zero
+    if base_clean == "" then
+        return 1
+    end
+
     return #base_clean
 end
 
 -- Detect resolution (smallest distinguishable unit) of number string
 function sigfig.detect_resolution(str)
-    -- Normalize string
-    local number, exp = str:match("([+-]?[%d%.]+)[eE]([+-]?%d+)")
-    exp = tonumber(exp) or 0
-    number = number or str
+    -- Parse mantissa and exponent
+    local number_str, exp_str = str:match("^%s*([+-]?[%d%.]+)[eE]([+-]?%d+)")
+    local exp = tonumber(exp_str) or 0
+    local num_part = number_str or str
 
-    local dot = number:find("%.")
-
-    if dot then
-        local decimals = #number - dot
-        return 10^(exp - decimals)
+    -- Check for decimal point
+    local dot_index = num_part:find("%.")
+    if dot_index then
+        local decimal_part = num_part:sub(dot_index + 1)
+        -- Remove trailing zeros
+        local trimmed_decimal = decimal_part:gsub("0*$", "")
+        local effective_decimals = #trimmed_decimal
+        return 10^(exp - effective_decimals)
     else
+        -- No decimal => resolution is 10^exp (exp is zero if none)
         return 10^exp
     end
 end
