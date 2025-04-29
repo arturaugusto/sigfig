@@ -101,4 +101,24 @@ function sigfig.detect_resolution(str)
     end
 end
 
+-- Round a number to a specified resolution using half-even rounding
+-- @param num number to round
+-- @param resolution resolution unit (must be > 0, power of 10)
+-- @return rounded number
+function sigfig.round_to_resolution(num, resolution)
+    if resolution <= 0 then error("resolution must be positive") end
+    local quotient = num / resolution
+    local rounded_q = round_half_even(quotient, 0)
+    return rounded_q * resolution
+end
+
+-- Round a number to have the same resolution as another number string
+-- @param num number to round
+-- @param ref_str string representing reference number whose resolution to match
+-- @return rounded number
+function sigfig.round_to_same_resolution(num, ref_str)
+    local res = sigfig.detect_resolution(ref_str)
+    return sigfig.round_to_resolution(num, res)
+end
+
 return sigfig
