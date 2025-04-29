@@ -35,4 +35,10 @@ assertEqual(sigfig.detect_significant_figures("1.230e+3"), 4, "Detect sigfigs 1.
 assertEqual(sigfig.detect_resolution("123.450"), 0.01, "Detect resolution 123.450")
 assertEqual(sigfig.detect_resolution("1.23e-4"), 1e-6, "Detect resolution 1.23e-4")
 
+-- Test resolution-based rounding
+assertEqual(sigfig.round_to_resolution(123.456, 0.01), 123.46, "Round to resolution 0.01")
+assertEqual(sigfig.round_to_resolution(123.456, 10), 120, "Round to resolution 10")
+assertEqual(sigfig.round_to_same_resolution(9.8765, "2.34"), 9.88, "Round to same resolution as '2.34'")
+assertEqual(sigfig.round_to_same_resolution(9.8765, "12300"), 10000, "Round to same resolution as '12300'")
+
 print("🎉 All tests passed successfully!")
