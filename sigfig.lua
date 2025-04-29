@@ -58,67 +58,81 @@ end
 
 -- Detect number of significant figures in a number string
 function sigfig.detect_significant_figures(str)
-    -- Remove sign and exponent part
     local base = str:match("^[+-]?([^eE]+)") or str
-
-    -- Remove decimal point temporarily
     local base_clean = base:gsub("%.", "")
-
-    -- If no decimal point, remove trailing zeros (non-significant)
     if not base:find("%.") then
         base_clean = base_clean:gsub("0*$", "")
     end
-
-    -- Remove leading zeros (non-significant)
     base_clean = base_clean:gsub("^0*", "")
-
-    -- Edge case: all digits removed? it's zero
-    if base_clean == "" then
-        return 1
-    end
-
+    if base_clean == "" then return 1 end
     return #base_clean
 end
 
 -- Detect resolution (smallest distinguishable unit) of number string
+-- Returns a string without floating-point errors
 function sigfig.detect_resolution(str)
     -- Parse mantissa and exponent
     local number_str, exp_str = str:match("^%s*([+-]?[%d%.]+)[eE]([+-]?%d+)")
     local exp = tonumber(exp_str) or 0
     local num_part = number_str or str
 
-    -- Check for decimal point
+    -- Determine exponent of resolution
     local dot_index = num_part:find("%.")
+    local exponent
     if dot_index then
-        local decimal_part = num_part:sub(dot_index + 1)
-        -- Remove trailing zeros
-        local trimmed_decimal = decimal_part:gsub("0*$", "")
-        local effective_decimals = #trimmed_decimal
-        return 10^(exp - effective_decimals)
+        local fraction = num_part:sub(dot_index + 1)
+        local trimmed = fraction:gsub("0*$", "")
+        local eff_dec = #trimmed
+        exponent = exp - eff_dec
     else
-        -- No decimal => resolution is 10^exp (exp is zero if none)
-        return 10^exp
+        local zeros = num_part:match("0*$") or ""
+        local tz = #zeros
+        if tz > 0 then
+            exponent = tz - 1
+        else
+            exponent = 0
+        end
+    end
+
+    -- Build resolution string
+    if exponent >= 0 then
+        return "1" .. string.rep("0", exponent)
+    else
+        return "0." .. string.rep("0", -exponent - 1) .. "1"
     end
 end
 
 -- Round a number to a specified resolution using half-even rounding
--- @param num number to round
--- @param resolution resolution unit (must be > 0, power of 10)
--- @return rounded number
+-- Returns a string without floating-point issues
 function sigfig.round_to_resolution(num, resolution)
-    if resolution <= 0 then error("resolution must be positive") end
-    local quotient = num / resolution
-    local rounded_q = round_half_even(quotient, 0)
-    return rounded_q * resolution
+    -- Accept numeric or string resolution
+    local res_str = (type(resolution) == "string") and resolution or tostring(resolution)
+    local resolution_num = tonumber(res_str)
+    if not resolution_num or resolution_num <= 0 then
+        error("invalid resolution: " .. tostring(resolution))
+    end
+
+    -- Determine number of decimals for output
+    local dot = res_str:find("%.")
+    local decimals = dot and (#res_str - dot) or 0
+
+    -- Perform rounding
+    local quotient = num / resolution_num
+    local r_q = round_half_even(quotient, 0)
+    local result = r_q * resolution_num
+
+    if decimals > 0 then
+        return string.format("%0." .. decimals .. "f", result)
+    else
+        return tostring(math.floor(result + 0.5))
+    end
 end
 
 -- Round a number to have the same resolution as another number string
--- @param num number to round
--- @param ref_str string representing reference number whose resolution to match
--- @return rounded number
+-- Returns a string without floating-point issues
 function sigfig.round_to_same_resolution(num, ref_str)
-    local res = sigfig.detect_resolution(ref_str)
-    return sigfig.round_to_resolution(num, res)
+    local res_str = sigfig.detect_resolution(ref_str)
+    return sigfig.round_to_resolution(num, res_str)
 end
 
 return sigfig
